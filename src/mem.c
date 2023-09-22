@@ -71,8 +71,27 @@ void mem_free(void *zone) {
 // mem_show
 //-------------------------------------------------------------
 void mem_show(void (*print)(void *, size_t, int free)) {
-    //TODO: implement
-	assert(! "NOT IMPLEMENTED !");
+	void *memory_addr = mem_space_get_addr();
+    struct fb *cellule = tete;
+
+	if (cellule != memory_addr) { // 1er bloc occupé
+		print(memory_addr, memory_addr-((void*) cellule), 0);
+	}
+
+	while (cellule != NULL) {
+		// affiche zone libre
+		print(cellule, cellule->size, 1);
+
+		// zone occupee intermediaire
+		if (cellule->next && ((void*)cellule)+cellule->size != cellule->next) {
+			void * zone_occ = ((void*)cellule)+cellule->size;
+			size_t taille = zone_occ - ((void*)cellule->next);
+			print(zone_occ, taille, 0);
+		}
+
+		// passe à la zone libre suivante
+		cellule = cellule->next;
+	}
 }
 
 //-------------------------------------------------------------
