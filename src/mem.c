@@ -11,13 +11,13 @@
 
 //--------------------------------
 // Liste chainée des zones libres
-struct fb {
+typedef struct fb_{
 	size_t size;
 	struct fb *next;
-};
+}fb;
 
 // tete de liste
-struct fb *tete = NULL;
+fb *tete = NULL;
 
 //-------------------------------------------------------------
 // mem_init
@@ -27,7 +27,7 @@ struct fb *tete = NULL;
  * If already init it will re-init.
 **/
 void mem_init() {
-    struct fb *first = mem_space_get_addr();
+    fb* first = mem_space_get_addr();
 	first->size = mem_space_get_size();
 	first->next = tete;
 	tete = first;
@@ -72,7 +72,7 @@ void mem_free(void *zone) {
 //-------------------------------------------------------------
 void mem_show(void (*print)(void *, size_t, int free)) {
 	void *memory_addr = mem_space_get_addr();
-    struct fb *cellule = tete;
+    fb *cellule = tete;
 
 	if (cellule != memory_addr) { // 1er bloc occupé
 		print(memory_addr, memory_addr-((void*) cellule), 0);
