@@ -9,6 +9,16 @@
 #include "mem_os.h"
 #include <assert.h>
 
+//--------------------------------
+// Liste chainée des zones libres
+struct fb {
+	size_t size;
+	struct fb *next;
+};
+
+// tete de liste
+struct fb *tete = NULL;
+
 //-------------------------------------------------------------
 // mem_init
 //-------------------------------------------------------------
@@ -17,8 +27,10 @@
  * If already init it will re-init.
 **/
 void mem_init() {
-    //TODO: implement
-	assert(! "NOT IMPLEMENTED !");
+    struct fb *first = mem_space_get_addr();
+	first->size = mem_space_get_size();
+	first->next = tete;
+	tete = first;
 }
 
 //-------------------------------------------------------------
