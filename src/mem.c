@@ -13,7 +13,7 @@
 // Liste chainée des zones libres
 typedef struct fb_{
 	size_t size;
-	struct fb *next;
+	struct fb_ *next;
 }fb;
 
 // tete de liste
