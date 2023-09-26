@@ -12,8 +12,8 @@
 
 // cellule presente au debut d'un bloc libre
 typedef struct fb_ {
-	size_t size;
-	struct fb_ *next; // chainaige vers le prochain bloc libre
+    size_t size;
+    struct fb_ *next; // chainaige vers le prochain bloc libre
 } fb;
 
 // liste chainee des zones libres
