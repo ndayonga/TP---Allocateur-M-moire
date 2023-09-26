@@ -10,14 +10,14 @@
 CC=gcc
 
 # build flags
-CFLAGS= -Wall -Werror -g -DMEMORY_SIZE=128000
+CFLAGS= -Wall -Werror -g
 CFLAGS+= -I../headers
 #CFLAGS+= -DDEBUG
 LDFLAGS=
 
 ###############################################################################
 # targets
-TESTS=test_init test_fusion test_fusion_bzero test_frag test_base test_base_bzero test_cheese test_cheese_bzero
+TESTS=test_memshow test_init test_fusion test_fusion_bzero test_frag test_base test_base_bzero test_cheese test_cheese_bzero
 PROGRAMS=$(TESTS)
 LIB_DIR=../libs
 

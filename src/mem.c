@@ -9,15 +9,23 @@
 #include "mem_os.h"
 #include <assert.h>
 
-//--------------------------------
-// Liste chainée des zones libres
-typedef struct fb_{
-	size_t size;
-	struct fb_ *next;
-}fb;
+//--------------------------------------
+// Structures utilisée
+//--------------------------------------
 
-// tete de liste
-fb *tete = NULL;
+
+// cellule presente au debut d'un bloc libre
+typedef struct fb_ {
+	size_t size;
+	struct fb_ *next; // chainaige vers le prochain bloc libre
+} fb;
+
+// liste chainee des zones libres
+typedef struct { fb *first; } header;
+
+// structure presente au debut de chaque bloc occupe
+typedef struct { size_t size; } bb;
+
 
 //-------------------------------------------------------------
 // mem_init
@@ -27,11 +35,16 @@ fb *tete = NULL;
  * If already init it will re-init.
 **/
 void mem_init() {
-    fb* first = mem_space_get_addr();
-	first->size = mem_space_get_size();
-	first->next = tete;
-	tete = first;
+	// on place la tete de la liste des zones libres en memoire
+	header* l = mem_space_get_addr();
+	l->first = mem_space_get_addr() + sizeof(header);
+
+	// on replit le bloc en debut de 
+    fb* first = l->first;
+	first->size = mem_space_get_size() - sizeof(header);
+	first->next = NULL;
 }
+
 
 //-------------------------------------------------------------
 // mem_alloc
@@ -71,26 +84,33 @@ void mem_free(void *zone) {
 // mem_show
 //-------------------------------------------------------------
 void mem_show(void (*print)(void *, size_t, int free)) {
-	void *memory_addr = mem_space_get_addr();
-    fb *cellule = tete;
+	// adresse et taille de la zone à afficher
+	void *zone_adr = mem_space_get_addr();
+	size_t zone_size = sizeof(header);
 
-	if (cellule != memory_addr) { // 1er bloc occupé
-		print(memory_addr, memory_addr-((void*) cellule), 0);
-	}
+	// cellule de la premiere zone libre
+	fb* cell_adr = ((header*)zone_adr)->first;
 
-	while (cellule != NULL) {
-		// affiche zone libre
-		print(cellule, cellule->size, 1);
-
-		// zone occupee intermediaire
-		if (cellule->next && ((void*)cellule)+cellule->size != cellule->next) {
-			void * zone_occ = ((void*)cellule)+cellule->size;
-			size_t taille = zone_occ - ((void*)cellule->next);
-			print(zone_occ, taille, 0);
+	// header est une zone occupee
+	print(zone_adr, zone_size, 0);
+	// zone suivante
+	zone_adr += sizeof(header);
+	
+	// on va parcourir jusqu'a l'@ de fin
+	void *adr_fin = mem_space_get_addr()+mem_space_get_size()-1;
+	while (zone_adr < adr_fin) {
+		if (zone_adr == (void*)cell_adr) { // on a une zone libre
+			print(cell_adr, cell_adr->size, 1);
+			zone_size = cell_adr->size;
+			cell_adr = cell_adr->next;
+		}
+		else { // on a une zone occupee
+			zone_size = ((bb*)zone_adr)->size; // recupere la taille
+			print(zone_adr, zone_size, 0);     // affiche
 		}
 
-		// passe à la zone libre suivante
-		cellule = cellule->next;
+		// zone suivante
+		zone_adr += zone_size;
 	}
 }
 
