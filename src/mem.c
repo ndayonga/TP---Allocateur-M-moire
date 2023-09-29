@@ -37,8 +37,39 @@ void mem_init() {
  * Allocate a bloc of the given size.
 **/
 void *mem_alloc(size_t size) {
-    //TODO: implement
-    assert(! "NOT IMPLEMENTED !");
+    // recupere l'entete
+    mem_header_t* tete = mem_space_get_addr();
+
+    // cherche le 1er block libre
+    mem_free_block_t *free_block = (*get_free_block)(tete->first, size + sizeof(bb));
+
+    // s'il n'y en a pas
+    if (free_block == NULL) return NULL;
+
+    // si on prend tout le bloc
+    if (free_block->size < wanted + sizeof(fb)) {
+        // modification du chainage
+        // 1er bloc devient occuppe
+        if (free_block == tete->first) tete->first = free_block->next;
+        else {
+            // sinon on recupere le precedent
+            mem_free_block_t *fb_prec = tete->first;
+            while (fb_prec->next && fb_prec->next != free_block)
+                fb_prec = fb_prec->next;
+            fb_prec->next = free_block->next;
+        }
+
+        size_t taille = free_block->size;
+        mem_busy_block_t *bb = free_block;
+        bb->size = taille;
+        return (void*)free_block + sizeof(bb);
+    }
+
+    // si on decoupe en deux parties
+    else {
+        alloue = (void*)free_block + sizeof(bb);
+
+    }
     return NULL;
 }
 
