@@ -9,24 +9,6 @@
 #include "mem_os.h"
 #include <assert.h>
 
-//--------------------------------------
-// Structures utilisée
-//--------------------------------------
-
-
-// cellule presente au debut d'un bloc libre
-typedef struct fb_ {
-    size_t size;
-    struct fb_ *next; // chainaige vers le prochain bloc libre
-} fb;
-
-// liste chainee des zones libres
-typedef struct { fb *first; } header;
-
-// structure presente au debut de chaque bloc occupe
-typedef struct { size_t size; } bb;
-
-
 //-------------------------------------------------------------
 // mem_init
 //-------------------------------------------------------------
@@ -36,12 +18,12 @@ typedef struct { size_t size; } bb;
 **/
 void mem_init() {
     // on place la tete de la liste des zones libres en memoire
-    header* l = mem_space_get_addr();
-    l->first = mem_space_get_addr() + sizeof(header);
+    mem_header_t* l = mem_space_get_addr();
+    l->first = mem_space_get_addr() + sizeof(mem_header_t);
 
     // on replit le bloc en debut de 
     fb* first = l->first;
-    first->size = mem_space_get_size() - sizeof(header);
+    first->size = mem_space_get_size() - sizeof(mem_header_t);
     first->next = NULL;
 }
 
@@ -86,15 +68,15 @@ void mem_free(void *zone) {
 void mem_show(void (*print)(void *, size_t, int free)) {
     // adresse et taille de la zone à afficher
     void *zone_adr = mem_space_get_addr();
-    size_t zone_size = sizeof(header);
+    size_t zone_size = sizeof(mem_header_t);
 
     // cellule de la premiere zone libre
-    fb* cell_adr = ((header*)zone_adr)->first;
+    mem_free_block_t* cell_adr = ((mem_header_t*)zone_adr)->first;
 
     // header est une zone occupee
     print(zone_adr, zone_size, 0);
     // zone suivante
-    zone_adr += sizeof(header);
+    zone_adr += sizeof(mem_header_t);
     
     // on va parcourir jusqu'a l'@ de fin
     void *adr_fin = mem_space_get_addr()+mem_space_get_size()-1;
@@ -105,7 +87,7 @@ void mem_show(void (*print)(void *, size_t, int free)) {
             cell_adr = cell_adr->next;
         }
         else { // on a une zone occupee
-            zone_size = ((bb*)zone_adr)->size; // recupere la taille
+            zone_size = ((mem_busy_block_t*)zone_adr)->size; // recupere la taille
             print(zone_adr, zone_size, 0);     // affiche
         }
 
@@ -126,15 +108,34 @@ void mem_set_fit_handler(mem_fit_function_t *mff) {
 // Stratégies d'allocation
 //-------------------------------------------------------------
 mem_free_block_t *mem_first_fit(mem_free_block_t *first_free_block, size_t wanted_size) {
-    //TODO: implement
-    assert(! "NOT IMPLEMENTED !");
-    return NULL;
+    mem_free_block_t *cellule = first_free_block;
+    while (cellule && cellule->size < wanted_size)
+        cellule = cellule->next;
+
+    return cellule;
 }
 //-------------------------------------------------------------
 mem_free_block_t *mem_best_fit(mem_free_block_t *first_free_block, size_t wanted_size) {
-    //TODO: implement
-    assert(! "NOT IMPLEMENTED !");
-    return NULL;
+    if (!first_free_block) return NULL;
+
+    mem_free_block_t *best = NULL;
+    mem_free_block_t *cell = first_free_block;
+
+    // parcours de toute les cellules de blocs libres
+    while (cell) {
+        if (best) {
+            if (cell->size >= wanted_size && best->size > cell->size)
+                best = cell;
+        }
+        else {
+            if (cell->size >= wanted_size)
+                best = cell;
+        }
+
+        cell = cell->next;
+    }
+    
+    return best;
 }
 
 //-------------------------------------------------------------

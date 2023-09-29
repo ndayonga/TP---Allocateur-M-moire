@@ -10,8 +10,24 @@
 //include stdlib pour definition du type size_t
 #include <stdlib.h>
 
-//Definie la structure the bloc libre
-typedef struct mem_free_block_s mem_free_block_t;
+//--------------------------------------
+// Structures utilisées
+//--------------------------------------
+
+// cellule presente au debut d'un bloc libre
+typedef struct fb_ {
+    size_t size;
+    struct fb_ *next; // chainaige vers le prochain bloc libre
+} fb;
+typedef fb mem_free_block_t;
+
+// liste chainee des zones libres
+typedef struct { fb *first; } header;
+typedef header mem_header_t;
+
+// structure presente au debut de chaque bloc occupe
+typedef struct { size_t size; } bb;
+typedef bb mem_busy_block_t;
 
 /* -----------------------------------------------*/
 /* Interface de gestion de votre allocateur       */
