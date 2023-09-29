@@ -10,18 +10,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-// cellule presente au debut d'un bloc libre
-typedef struct fb_ {
-    size_t size;
-    struct fb_ *next; // chainaige vers le prochain bloc libre
-} fb;
-
-// liste chainee des zones libres
-typedef struct { fb *first; } header;
-
-// structure presente au debut de chaque bloc occupe
-typedef struct { size_t size; } bb;
-
 void pretty(void * zone, size_t s, int free) {
     printf("Zone %p Taille %ld - libre=%d\n", zone, s, free);
 }
@@ -38,13 +26,13 @@ int main(int argc, char *argv[]) {
     // sizeof  128      64     <->    512     24     128    64      32     
     
     // on commence par la fin et on va par @ decroissante
-    bb* occ = adr + max_size - 32;
+    mem_busy_block_t* occ = adr + max_size - 32;
     occ->size = 32;
 
     occ = ((void*)occ) - 64;
     occ->size = 64;
 
-    fb* second = ((void*)occ) - 128;
+    mem_free_block_t* second = ((void*)occ) - 128;
     second->size = 128;
     second->next = NULL;
 
@@ -54,8 +42,8 @@ int main(int argc, char *argv[]) {
     occ = ((void*)occ) - 512;
     occ->size = 512;
 
-    fb* first = adr + sizeof(header) + 128 + 64;
-    first->size = max_size - sizeof(header) - (128+64+512+24+128+64+32);
+    mem_free_block_t* first = adr + sizeof(mem_header_t) + 128 + 64;
+    first->size = max_size - sizeof(mem_header_t) - (128+64+512+24+128+64+32);
     first->next = second;
 
     occ = ((void*)first) - 64;
@@ -64,7 +52,7 @@ int main(int argc, char *argv[]) {
     occ = ((void*)occ) - 128;
     occ->size = 128;
 
-    header* h = adr;
+    mem_header_t* h = adr;
     h->first = first;
 
     mem_show(&pretty);
