@@ -140,7 +140,26 @@ mem_free_block_t *mem_best_fit(mem_free_block_t *first_free_block, size_t wanted
 
 //-------------------------------------------------------------
 mem_free_block_t *mem_worst_fit(mem_free_block_t *first_free_block, size_t wanted_size) {
-    //TODO: implement
-    assert(! "NOT IMPLEMENTED !");
-    return NULL;
+    if (first_free_block == NULL){
+        return NULL;
+    }
+    int size_diff;
+	fb* block;
+	// fb* ff_block = mem_space_get_addr() + sizeof(header);		// first_free_block
+	block = first_free_block;		// Initialement, le bloc à retourner est le premier block libre
+	int size_diff_max = first_free_block->size - (wanted_size);
+	if (size_diff_max < 0)
+		size_diff_max = 0;
+	while(first_free_block->next != NULL){
+		first_free_block = first_free_block->next;
+		size_diff = first_free_block->size - (wanted_size);
+		if(size_diff > size_diff_max){
+			block = first_free_block;
+			size_diff_max = size_diff;
+		}
+	}
+	if (size_diff_max == 0){
+		return NULL;
+	}
+	return block;
 }
