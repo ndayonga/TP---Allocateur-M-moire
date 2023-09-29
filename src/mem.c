@@ -9,6 +9,8 @@
 #include "mem_os.h"
 #include <assert.h>
 
+mem_fit_function_t *get_free_block = mem_first_fit;
+
 //-------------------------------------------------------------
 // mem_init
 //-------------------------------------------------------------
@@ -100,8 +102,7 @@ void mem_show(void (*print)(void *, size_t, int free)) {
 // mem_fit
 //-------------------------------------------------------------
 void mem_set_fit_handler(mem_fit_function_t *mff) {
-    //TODO: implement
-    assert(! "NOT IMPLEMENTED !");
+    get_free_bloc = mff;
 }
 
 //-------------------------------------------------------------
@@ -123,16 +124,16 @@ mem_free_block_t *mem_best_fit(mem_free_block_t *first_free_block, size_t wanted
 
     // parcours de toute les cellules de blocs libres
     while (cell) {
-        if (best) {
-            if (cell->size >= wanted_size && best->size > cell->size)
-                best = cell;
+        if (best) { // si un meilleur bloc -> comparaison
+            if (cell->size >= wanted_size && best->size > cell->size) // et si mieux ajuste
+                best = cell; // alors c'est le meilleur bloc jusqu'a maintenant
         }
-        else {
-            if (cell->size >= wanted_size)
-                best = cell;
+        else { // si pas de meilleur bloc
+            if (cell->size >= wanted_size) // et taille suffisante
+                best = cell; // alors c'est un meilleur bloc
         }
 
-        cell = cell->next;
+        cell = cell->next; // au suivant !
     }
     
     return best;
