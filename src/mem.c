@@ -8,6 +8,7 @@
 #include "mem_space.h"
 #include "mem_os.h"
 #include <assert.h>
+#include <stdint.h>
 
 mem_fit_function_t *get_free_block = mem_first_fit;
 
@@ -37,99 +38,70 @@ void mem_init() {
  * Allocate a bloc of the given size.
 **/
 void *mem_alloc(size_t size) {
-    // // recupere l'entete
-    // mem_header_t* tete = mem_space_get_addr();
+    // recupere l'entete
+    mem_header_t* tete = mem_space_get_addr();
 
-    // // cherche le 1er block libre
-    // mem_free_block_t *free_block = (*get_free_block)(tete->first, size + sizeof(bb));
+    /* la taille voulue est :
+     * - la taille demandée + la taille d'une structure busy block
+     * ET
+     * - au moins la taille d'une cellule libre (structure fb) 
+     *    garantissant la possibilité de libération du bloc
+     */
+    size_t wanted = (size + sizeof(bb) > sizeof(fb)) ? size + sizeof(bb) : sizeof(fb);
+    size_t real_size;
 
-    // // s'il n'y en a pas
-    // if (free_block == NULL) return NULL;
+    // on recupere le bloc libre qui nous interesse
+    mem_free_block_t *free_block = (*get_free_block)(tete->first, wanted);
 
-    // // si on prend tout le bloc
-    // if (free_block->size < wanted + sizeof(fb)) {
-    //     // modification du chainage
-    //     // 1er bloc devient occuppe
-    //     if (free_block == tete->first) tete->first = free_block->next;
-    //     else {
-    //         // sinon on recupere le precedent
-    //         mem_free_block_t *fb_prec = tete->first;
-    //         while (fb_prec->next && fb_prec->next != free_block)
-    //             fb_prec = fb_prec->next;
-    //         fb_prec->next = free_block->next;
-    //     }
+    // si y'en a pas on renvoie NULL
+    if (!free_block) return NULL;
 
-    //     size_t taille = free_block->size;
-    //     mem_busy_block_t *bb = free_block;
-    //     bb->size = taille;
-    //     return (void*)free_block + sizeof(bb);
-    // }
+    // Cas ou on peut mettre une structure fb sur la fin du bloc
+    if (free_block->size >= wanted + sizeof(fb)) {
+        if (tete->first == free_block) { // on est la tete
+            // modification du chainage
+            mem_free_block_t *new_fb = ((void*)free_block + wanted);
+            new_fb->size = free_block->size - wanted;
+            tete->first = new_fb;
+        }
+        else { // sinon on va chercher le bloc qui nous precede
+            mem_free_block_t *prec = tete->first;
+            while(prec->next != free_block)
+                prec = prec->next;
+            
+            // modification du chainage
+            mem_free_block_t *new_fb = ((void*)free_block + wanted);
+            new_fb->size = free_block->size - wanted;
+            new_fb->next = free_block->next;
+            prec->next = new_fb;
+        }
 
-    // // si on decoupe en deux parties
-    // else {
-    //     alloue = (void*)free_block + sizeof(bb);
-
-    // }
-    // return NULL;
-
-    void* bloc_alloue;
-    fb* courant = NULL;
-	header* tete = mem_space_get_addr();
-	fb* first_free_block = tete->first;
-    size_t wanted = size + sizeof(bb);
-    fb *free_block = (*get_free_block)(first_free_block, wanted);
-    if (free_block == NULL){
-        return NULL;
+        // taille allouee dans ce cas
+        real_size = wanted;
     }
 
-    // Cas où le bloc libre trouvé a une taille supérieure à la taille voulue
-    if (free_block->size > wanted){
-        if ((free_block->size - wanted) >= sizeof(fb)){
-            bloc_alloue = (void*)free_block + sizeof(bb);
-            if (tete->first == free_block){
-                free_block = (fb*)((void*)free_block + wanted);
-                free_block->size = free_block->size - wanted;
-                tete->first = free_block;
-            }
-            else{
-                courant = tete->first;
-                while(courant->next != free_block){
-                    courant = courant->next;
-                }
-                free_block = (fb*)((void*)free_block + wanted);
-                free_block->size = free_block->size - wanted;
-            }
-            return bloc_alloue;
-        }
-        else{
-            bloc_alloue = (void*)free_block + (free_block->size - wanted) + sizeof(bb);
-            if (tete->first == free_block){
-                tete->first = free_block->next;
-            }
-            else{
-                courant = tete->first;
-                while(courant->next != free_block){
-                    courant = courant->next;
-                }
-                courant->next = free_block->next;
-            }
-            return bloc_alloue;
-        }
-    }
-    else{
-        bloc_alloue = (void*)free_block + sizeof(bb);
-        if (tete->first == free_block){
+    // cas ou on occupe tout le bloc
+    else {
+        if (tete->first == free_block) {
+            // si on est la tete, on passe au suivant
             tete->first = free_block->next;
         }
         else{
-            courant = tete->first;
-            while(courant->next != free_block){
-                courant = courant->next;
-            }
-            courant->next = free_block->next;
+            mem_free_block_t *prec = tete->first;
+            while (prec->next != free_block)
+                prec = prec->next;
+
+            prec->next = free_block->next;
         }
-        return bloc_alloue;
+
+        // taille allouee dans cet autre cas
+        real_size = free_block->size;
     }
+
+    // construction du busy bloc
+    mem_busy_block_t *bb = (mem_busy_block_t*) free_block;
+    bb->size = real_size;
+    return ((void*)free_block) + sizeof(bb);
 }
 
 //-------------------------------------------------------------
@@ -159,14 +131,15 @@ void mem_free(void *zone) {
 //-------------------------------------------------------------
 void mem_show(void (*print)(void *, size_t, int free)) {
     // adresse et taille de la zone à afficher
-    void *zone_adr = mem_space_get_addr();
+    void *adr_debut = mem_space_get_addr();
+    void *zone_adr = adr_debut;
     size_t zone_size = sizeof(mem_header_t);
 
     // cellule de la premiere zone libre
     mem_free_block_t* cell_adr = ((mem_header_t*)zone_adr)->first;
 
     // header est une zone occupee
-    print(zone_adr, zone_size, 0);
+    print(0, zone_size, 0);
     // zone suivante
     zone_adr += sizeof(mem_header_t);
     
@@ -174,13 +147,13 @@ void mem_show(void (*print)(void *, size_t, int free)) {
     void *adr_fin = mem_space_get_addr()+mem_space_get_size()-1;
     while (zone_adr < adr_fin) {
         if (zone_adr == (void*)cell_adr) { // on a une zone libre
-            print(cell_adr, cell_adr->size, 1);
+            print((void*)((size_t)zone_adr-(size_t)adr_debut), cell_adr->size, 1);
             zone_size = cell_adr->size;
             cell_adr = cell_adr->next;
         }
         else { // on a une zone occupee
             zone_size = ((mem_busy_block_t*)zone_adr)->size; // recupere la taille
-            print(zone_adr, zone_size, 0);     // affiche
+            print((void*)((size_t)zone_adr-(size_t)adr_debut), zone_size, 0);     // affiche
         }
 
         // zone suivante
@@ -199,16 +172,16 @@ void mem_set_fit_handler(mem_fit_function_t *mff) {
 // Stratégies d'allocation
 //-------------------------------------------------------------
 mem_free_block_t *mem_first_fit(mem_free_block_t *first_free_block, size_t wanted_size) {
+    // schema de recherche classique
     mem_free_block_t *cellule = first_free_block;
     while (cellule && cellule->size < wanted_size)
         cellule = cellule->next;
 
     return cellule;
 }
+
 //-------------------------------------------------------------
 mem_free_block_t *mem_best_fit(mem_free_block_t *first_free_block, size_t wanted_size) {
-    if (!first_free_block) return NULL;
-
     mem_free_block_t *best = NULL;
     mem_free_block_t *cell = first_free_block;
 
@@ -231,26 +204,26 @@ mem_free_block_t *mem_best_fit(mem_free_block_t *first_free_block, size_t wanted
 
 //-------------------------------------------------------------
 mem_free_block_t *mem_worst_fit(mem_free_block_t *first_free_block, size_t wanted_size) {
-    if (first_free_block == NULL){
-        return NULL;
+    mem_free_block_t *block = first_free_block;
+    mem_free_block_t *worst = NULL;
+    size_t sizet_max = 0;
+    sizet_max = ~ sizet_max; // calcul de la valeur maximale entrant dans un size_t
+
+    size_t size_diff_max = sizet_max; // size_diff = +infini
+
+    //int size_diff_max = first_free_block->size - (wanted_size);
+    size_t size_diff;
+    while (block) {
+        // calcule l'ajustement avec le bloc courant (si trop petit = +infini)
+        size_diff = (block->size >= wanted_size) ? block->size - wanted_size : sizet_max;
+
+        // si c'est mieux qu'auparavant
+        if (size_diff < size_diff_max) {
+            worst = block;
+            size_diff_max = size_diff;
+        }
+        block = block->next; // au suivant
     }
-    int size_diff;
-	fb* block;
-	// fb* ff_block = mem_space_get_addr() + sizeof(header);		// first_free_block
-	block = first_free_block;		// Initialement, le bloc à retourner est le premier block libre
-	int size_diff_max = first_free_block->size - (wanted_size);
-	if (size_diff_max < 0)
-		size_diff_max = 0;
-	while(first_free_block->next != NULL){
-		first_free_block = first_free_block->next;
-		size_diff = first_free_block->size - (wanted_size);
-		if(size_diff > size_diff_max){
-			block = first_free_block;
-			size_diff_max = size_diff;
-		}
-	}
-	if (size_diff_max == 0){
-		return NULL;
-	}
-	return block;
+
+    return worst;
 }

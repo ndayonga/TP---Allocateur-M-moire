@@ -91,5 +91,10 @@ int main(int argc, char const *argv[])
     printf("Ajout d'un bloc de taille 200 à l'adresse %p\n", &fb3_5);
     printf("toujours 4e bloc le plus grand : @=%p\n", mem_worst_fit(h.first, 100));
 
+    mem_free_block_t fb3_6 = {100, NULL};
+    fb3_5.next = &fb3_6;
+    printf("Ajout d'un bloc de taille 100 à l'adresse %p\n", &fb3_6);
+    printf("toujours 4e bloc le plus grand : @=%p\n", mem_worst_fit(h.first, 100));
+
     return 0;
 }
