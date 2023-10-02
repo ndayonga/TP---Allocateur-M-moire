@@ -58,21 +58,19 @@ void *mem_alloc(size_t size) {
 
     // Cas ou on peut mettre une structure fb sur la fin du bloc
     if (free_block->size >= wanted + sizeof(fb)) {
+        // on cree la nouvelle fb en fin de zone
+        mem_free_block_t *new_fb = ((void*)free_block + wanted);
+        new_fb->size = free_block->size - wanted;
+        new_fb->next = free_block->next;
+
         if (tete->first == free_block) { // on est la tete
-            // modification du chainage
-            mem_free_block_t *new_fb = ((void*)free_block + wanted);
-            new_fb->size = free_block->size - wanted;
             tete->first = new_fb;
         }
-        else { // sinon on va chercher le bloc qui nous precede
+        else { // sinon on va chercher le bloc qui precede
             mem_free_block_t *prec = tete->first;
             while(prec->next != free_block)
                 prec = prec->next;
-            
-            // modification du chainage
-            mem_free_block_t *new_fb = ((void*)free_block + wanted);
-            new_fb->size = free_block->size - wanted;
-            new_fb->next = free_block->next;
+
             prec->next = new_fb;
         }
 
@@ -206,21 +204,13 @@ mem_free_block_t *mem_best_fit(mem_free_block_t *first_free_block, size_t wanted
 mem_free_block_t *mem_worst_fit(mem_free_block_t *first_free_block, size_t wanted_size) {
     mem_free_block_t *block = first_free_block;
     mem_free_block_t *worst = NULL;
-    size_t sizet_max = 0;
-    sizet_max = ~ sizet_max; // calcul de la valeur maximale entrant dans un size_t
+    size_t size_max = 0; // taille max initiale = 0
 
-    size_t size_diff_max = sizet_max; // size_diff = +infini
-
-    //int size_diff_max = first_free_block->size - (wanted_size);
-    size_t size_diff;
     while (block) {
-        // calcule l'ajustement avec le bloc courant (si trop petit = +infini)
-        size_diff = (block->size >= wanted_size) ? block->size - wanted_size : sizet_max;
-
         // si c'est mieux qu'auparavant
-        if (size_diff < size_diff_max) {
+        if (block->size > size_max && block->size >= wanted_size) {
             worst = block;
-            size_diff_max = size_diff;
+            size_max = block->size;
         }
         block = block->next; // au suivant
     }

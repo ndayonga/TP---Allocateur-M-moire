@@ -11,7 +11,7 @@
 #include <stdlib.h>
 
 void pretty(void * zone, size_t s, int free) {
-    printf("Zone %p Taille %ld - libre=%d\n", zone, s, free);
+    printf("Zone %ld Taille %ld - libre=%d\n", (unsigned long)zone, s, free);
 }
 
 
