@@ -119,7 +119,37 @@ size_t mem_get_size(void * zone)
 **/
 void mem_free(void *zone) {
     //TODO: implement
-    assert(! "NOT IMPLEMENTED !");
+    mem_header_t* tete = mem_space_get_addr();
+    mem_free_block_t* courant = tete->first;
+    mem_busy_block_t* busy = zone - sizeof(mem_busy_block_t);    // Début de la zone à libérer
+
+    if(courant == NULL){       // S'il n'y a pas de bloc libre
+        mem_free_block_t* freeblock = (mem_free_block_t*)busy;
+        freeblock->size = busy->size + sizeof(mem_busy_block_t);
+        freeblock->next = NULL;
+        tete->first = freeblock;
+    }
+    else if((void*)courant > zone){      // Si la zone qu'on veut libérer vient avant le premier bloc libre
+        mem_free_block_t* freeblock = (mem_free_block_t*)busy;
+        freeblock->size = busy->size + sizeof(mem_busy_block_t);
+        freeblock->next = courant;
+        tete->first = freeblock;
+        printf("busy->size = %ld\n", busy->size);
+        printf("freeblock->size = %ld\n", freeblock->size);
+    }
+
+    else if((void*)courant < zone){      // Si la zone que l'on veut libérer vient après le premier bloc libre
+        while((void*)courant->next < zone){
+            courant = courant->next;
+        }
+        mem_free_block_t* freeblock = (mem_free_block_t*)busy;
+        freeblock->size = busy->size + sizeof(mem_busy_block_t);
+        freeblock->next = courant->next;
+        courant->next = freeblock;
+        tete->first = freeblock;
+    }
+    
+    // assert(! "NOT IMPLEMENTED !");  // C'est pas encore fini
 }
 
 //-------------------------------------------------------------
