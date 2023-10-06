@@ -108,7 +108,7 @@ void *mem_alloc(size_t size) {
 size_t mem_get_size(void * zone)
 {
     mem_busy_block_t *bb = zone - sizeof(mem_busy_block_t);
-    return bb->size;
+    return bb->size - sizeof(mem_busy_block_t);
 }
 
 //-------------------------------------------------------------
@@ -118,38 +118,57 @@ size_t mem_get_size(void * zone)
  * Free an allocaetd bloc.
 **/
 void mem_free(void *zone) {
-    //TODO: implement
+    // zone memoire
     mem_header_t* tete = mem_space_get_addr();
-    mem_free_block_t* courant = tete->first;
+    if ((void*)tete+sizeof(mem_header_t) > zone || zone > (void*)tete+mem_space_get_size()) {
+        fprintf(stderr, "Pointeur hors zone mémoire !"); exit(1);
+    }
+
+    // bloc occupee
     mem_busy_block_t* busy = zone - sizeof(mem_busy_block_t);    // Début de la zone à libérer
-
-    if(courant == NULL){       // S'il n'y a pas de bloc libre
-        mem_free_block_t* freeblock = (mem_free_block_t*)busy;
-        freeblock->size = busy->size + sizeof(mem_busy_block_t);
-        freeblock->next = NULL;
-        tete->first = freeblock;
-    }
-    else if((void*)courant > zone){      // Si la zone qu'on veut libérer vient avant le premier bloc libre
-        mem_free_block_t* freeblock = (mem_free_block_t*)busy;
-        freeblock->size = busy->size + sizeof(mem_busy_block_t);
-        freeblock->next = courant;
-        tete->first = freeblock;
-        printf("busy->size = %ld\n", busy->size);
-        printf("freeblock->size = %ld\n", freeblock->size);
+    size_t blocksize = busy->size;
+    if (blocksize < sizeof(mem_free_block_t)) {
+        fprintf(stderr, "Pointeur invalide !"); exit(1);
     }
 
-    else if((void*)courant < zone){      // Si la zone que l'on veut libérer vient après le premier bloc libre
-        while((void*)courant->next < zone){
-            courant = courant->next;
+    // creation du free block
+    mem_free_block_t* freeblock = (mem_free_block_t*)busy;
+    freeblock->size = blocksize;
+
+    if(tete->first == NULL || tete->first > freeblock) { // S'il n'y a pas de bloc libre
+        freeblock->next = tete->first;
+        tete->first = freeblock;
+
+        // fusion à droite
+        if ((void*)freeblock + blocksize == freeblock->next) {
+            freeblock->size += freeblock->next->size;
+            freeblock->next = freeblock->next->next;
         }
-        mem_free_block_t* freeblock = (mem_free_block_t*)busy;
-        freeblock->size = busy->size + sizeof(mem_busy_block_t);
-        freeblock->next = courant->next;
-        courant->next = freeblock;
-        tete->first = freeblock;
     }
-    
-    // assert(! "NOT IMPLEMENTED !");  // C'est pas encore fini
+
+    else if(tete->first < freeblock){ // Si la zone que l'on veut libérer vient après le premier bloc libre
+        // recherche du precedent
+        mem_free_block_t *prec = tete->first;
+        while(prec->next < freeblock) prec = prec->next;
+        if (!prec) {
+            fprintf(stderr, "Chainage invalide !"); exit(1);
+        }
+
+        freeblock->next = prec->next;
+        prec->next = freeblock;
+
+        // fusion à droite
+        if ((void*)freeblock + blocksize == freeblock->next) {
+            freeblock->size += freeblock->next->size;
+            freeblock->next = freeblock->next->next;
+        }
+
+        // fusion à gauche
+        if ((void*)prec + prec->size == (void*)freeblock) {
+            prec->size += freeblock->size;
+            prec->next = freeblock->next;
+        }
+    }
 }
 
 //-------------------------------------------------------------
