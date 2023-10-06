@@ -57,7 +57,7 @@ void *mem_alloc(size_t size) {
     if (!free_block) return NULL;
 
     // Cas ou on peut mettre une structure fb sur la fin du bloc
-    if (free_block->size >= wanted + sizeof(fb)) {
+    if (free_block->size > wanted + sizeof(fb)) {
         // on cree la nouvelle fb en fin de zone
         mem_free_block_t *new_fb = ((void*)free_block + wanted);
         new_fb->size = free_block->size - wanted;
@@ -107,9 +107,8 @@ void *mem_alloc(size_t size) {
 //-------------------------------------------------------------
 size_t mem_get_size(void * zone)
 {
-    //TODO: implement
-    assert(! "NOT IMPLEMENTED !");
-    return 0;
+    mem_busy_block_t *bb = zone - sizeof(mem_busy_block_t);
+    return bb->size;
 }
 
 //-------------------------------------------------------------
