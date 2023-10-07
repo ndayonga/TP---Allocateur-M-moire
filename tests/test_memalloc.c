@@ -27,7 +27,7 @@ void init(void) {
     void *adr1 = mem_alloc(64);
     void *adr2 = mem_alloc(272);
     adrfb1 = mem_alloc(80);
-    assert(mem_get_size(adrfb1) == 80+sizeof(bb));
+    assert(mem_get_size(adrfb1) == 80);
     mem_alloc(40);
     adrfb2 = mem_alloc(-1);
     mem_alloc(108);
