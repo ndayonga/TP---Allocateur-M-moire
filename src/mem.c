@@ -10,7 +10,14 @@
 #include <assert.h>
 #include <stdint.h>
 
+#define MIN_SIZE_BLOCk (sizeof(fb) < sizeof(bb) ? sizeof(bb) : sizeof(fb))
+
 mem_fit_function_t *get_free_block = mem_first_fit;
+
+
+
+
+
 
 //-------------------------------------------------------------
 // mem_init
@@ -47,7 +54,7 @@ void *mem_alloc(size_t size) {
      * - au moins la taille d'une cellule libre (structure fb) 
      *    garantissant la possibilité de libération du bloc
      */
-    size_t wanted = (size + sizeof(bb) > sizeof(fb)) ? size + sizeof(bb) : sizeof(fb);
+    size_t wanted = (size + sizeof(bb) > MIN_SIZE_BLOCk) ? size + sizeof(bb) : MIN_SIZE_BLOCk;
     size_t real_size;
 
     // get_free_block = mem_best_fit;
@@ -59,8 +66,8 @@ void *mem_alloc(size_t size) {
     // si y'en a pas on renvoie NULL
     if (!free_block) return NULL;
 
-    // Cas ou on peut mettre une structure fb sur la fin du bloc
-    if (free_block->size > wanted + sizeof(fb)) {
+    // Cas ou on peut mettre un bloc libre de MIN_SIZE_BLOCK octets
+    if (free_block->size > wanted + MIN_SIZE_BLOCk) {
         // on cree la nouvelle fb en fin de zone
         mem_free_block_t *new_fb = ((void*)free_block + wanted);
         new_fb->size = free_block->size - wanted;
@@ -121,26 +128,27 @@ size_t mem_get_size(void * zone)
  * Free an allocaetd bloc.
 **/
 void mem_free(void *zone) {
+    if(!zone) return;
+
     // zone memoire
-    if(zone == NULL)
-        return;
     mem_header_t* tete = mem_space_get_addr();
     if ((void*)tete+sizeof(mem_header_t) > zone || zone > (void*)tete+mem_space_get_size()) {
-        fprintf(stderr, "Pointeur hors zone mémoire !"); exit(1);
+        fprintf(stderr, "mem_free : pointeur hors zone mémoire !\n"); exit(1);
     }
 
     // bloc occupee
     mem_busy_block_t* busy = zone - sizeof(mem_busy_block_t);    // Début de la zone à libérer
     size_t blocksize = busy->size;
     if (blocksize < sizeof(mem_free_block_t)) {
-        fprintf(stderr, "Pointeur invalide !"); exit(1);
+        fprintf(stderr, "mem_free : ointeur invalide !\n"); exit(1);
     }
 
     // creation du free block
     mem_free_block_t* freeblock = (mem_free_block_t*)busy;
     freeblock->size = blocksize;
 
-    if(tete->first == NULL || tete->first > freeblock) { // S'il n'y a pas de bloc libre ou s'il n'y a pas de zone libre avant la zone que l'on veut libérer
+    // s'il n'y a pas de zone libre avant la zone que l'on veut libérer
+    if(tete->first == NULL || tete->first > freeblock) {
         freeblock->next = tete->first;
         tete->first = freeblock;
 
@@ -151,14 +159,23 @@ void mem_free(void *zone) {
         }
     }
 
-    else if(tete->first < freeblock){ // Si la zone que l'on veut libérer vient après le premier bloc libre
+    // Si la zone que l'on veut libérer vient après le premier bloc libre
+    else if(tete->first < freeblock) { 
         // recherche du precedent
         mem_free_block_t *prec = tete->first;
-        while(prec->next != NULL && prec->next < freeblock) prec = prec->next;
+        while(prec->next && prec->next <= freeblock)
+            prec = prec->next;
+        
         if (!prec) {
-            fprintf(stderr, "Chainage invalide !"); exit(1);
+            fprintf(stderr, "mem_free : chainage invalide !\n"); exit(1);
         }
-
+        if (prec->size < sizeof(mem_free_block_t)) {
+            fprintf(stderr, "mem_free: chainage corrompu !\n"); exit(1);
+        }
+        if (prec->next == freeblock) {
+            fprintf(stderr, "mem_free: zone déjà libre !\n"); exit(1);
+        }
+        
         freeblock->next = prec->next;
         prec->next = freeblock;
 
@@ -223,21 +240,50 @@ void mem_set_fit_handler(mem_fit_function_t *mff) {
 // Stratégies d'allocation
 //-------------------------------------------------------------
 mem_free_block_t *mem_first_fit(mem_free_block_t *first_free_block, size_t wanted_size) {
-    // schema de recherche classique
-    mem_free_block_t *cellule = first_free_block;
-    while (cellule && cellule->size < wanted_size)
-        cellule = cellule->next;
+    void *memory = mem_space_get_addr();
+    size_t mem_size = mem_space_get_size();
 
-    return cellule;
+    // schema de recherche classique
+    mem_free_block_t *cell = first_free_block;
+    while (cell && cell->size < wanted_size) {
+        // cas d'erreur
+        if (cell->size < sizeof(mem_free_block_t)) {
+            // tout bloc faut au moins sizeof(fb) octets
+            fprintf(stderr, "mem_alloc : chainage corrompu !\n");
+            exit(1);
+        }
+
+        cell = cell->next;
+        if (cell && ((void*)cell < memory + sizeof(mem_header_t) ||
+            (void*)cell >= memory + mem_size))
+        {
+            // bloc hors zone mémoire
+            fprintf(stderr, "mem_alloc : chainage invalide !\n");
+            exit(1);
+        }
+    }
+
+    return cell;
 }
 
 //-------------------------------------------------------------
 mem_free_block_t *mem_best_fit(mem_free_block_t *first_free_block, size_t wanted_size) {
+    void *memory = mem_space_get_addr();
+    size_t mem_size = mem_space_get_size();
+
     mem_free_block_t *best = NULL;
     mem_free_block_t *cell = first_free_block;
 
     // parcours de toute les cellules de blocs libres
     while (cell) {
+        // erreur
+        if (cell->size < sizeof(mem_free_block_t)) {
+            // tout bloc faut au moins sizeof(fb) octets
+            fprintf(stderr, "mem_alloc : chainage corrompu !\n");
+            exit(1);
+        }
+
+        // calcul du meilleur bloc
         if (best) { // si un meilleur bloc -> comparaison
             if (cell->size >= wanted_size && best->size > cell->size) // et si mieux ajuste
                 best = cell; // alors c'est le meilleur bloc jusqu'a maintenant
@@ -248,6 +294,13 @@ mem_free_block_t *mem_best_fit(mem_free_block_t *first_free_block, size_t wanted
         }
 
         cell = cell->next; // au suivant !
+        if (cell && ((void*)cell < memory + sizeof(mem_header_t) ||
+            (void*)cell >= memory + mem_size))
+        {
+            // bloc hors zone mémoire
+            fprintf(stderr, "mem_alloc : chainage invalide !\n");
+            exit(1);
+        }
     }
     
     return best;
@@ -255,17 +308,37 @@ mem_free_block_t *mem_best_fit(mem_free_block_t *first_free_block, size_t wanted
 
 //-------------------------------------------------------------
 mem_free_block_t *mem_worst_fit(mem_free_block_t *first_free_block, size_t wanted_size) {
+    void *memory = mem_space_get_addr();
+    size_t mem_size = mem_space_get_size();
+
+
     mem_free_block_t *block = first_free_block;
     mem_free_block_t *worst = NULL;
     size_t size_max = 0; // taille max initiale = 0
 
     while (block) {
+        // erreur
+        if (block->size < sizeof(mem_free_block_t)) {
+            // tout bloc faut au moins sizeof(fb) octets
+            fprintf(stderr, "mem_alloc : chainage corrompu !\n");
+            exit(1);
+        }
+
         // si c'est mieux qu'auparavant
         if (block->size > size_max && block->size >= wanted_size) {
             worst = block;
             size_max = block->size;
         }
+
         block = block->next; // au suivant
+        
+        if (block && ((void*)block < memory + sizeof(mem_header_t) ||
+            (void*)block >= memory + mem_size))
+        {
+            // bloc hors zone mémoire
+            fprintf(stderr, "mem_alloc : chainage invalide !\n");
+            exit(1);
+        }
     }
 
     return worst;

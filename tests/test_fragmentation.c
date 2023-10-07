@@ -8,10 +8,10 @@
 
 /**
  * On se donne une métrique (pas térrible...)
- * Compte le pourcentage de zones libres de taille inférieure
- * à min_size sur le nombre de zones (libres et alloués)
+ * Compte le nombre de zones libres 
+ * sur le nombre de zones (libres et occupées)
  */
-double estimation_fragmentation(size_t min_size) {
+double estimation_fragmentation() {
     void *zone_adr = mem_space_get_addr();
     size_t nb_petits_blocs = 0;
     size_t nb_blocs = 0;
@@ -26,7 +26,7 @@ double estimation_fragmentation(size_t min_size) {
     while (zone_adr < adr_fin) {
         if (zone_adr == (void*)cell_adr) { // on a une zone libre
             zone_size = cell_adr->size;
-            if (zone_size < min_size) nb_petits_blocs++;
+            nb_petits_blocs++;
             cell_adr = cell_adr->next;
         }
         else zone_size = ((bb*)zone_adr)->size;
@@ -36,6 +36,48 @@ double estimation_fragmentation(size_t min_size) {
     
     return (double)nb_petits_blocs / nb_blocs * 100.;
 }
+
+
+/**
+ * On se donne une métrique (un peu mieux...)
+ * Compte le pourcentage de la taille des zones libres
+ * relativement à la mémoire nécessaire à l'allocateur
+ */
+double estimation_fragmentation2() {
+    void *zone_adr = mem_space_get_addr();
+    size_t free_memory_size = 0;
+    size_t used_memory_size = 0;
+
+    // 1ere cellule libre
+    fb *cell_adr = ((header*)zone_adr)->first;
+    fb *prec_adr = NULL;
+    zone_adr += sizeof(header);
+    size_t zone_size;
+
+    // on va parcourir jusqu'a l'@ de fin
+    void *adr_fin = mem_space_get_addr()+mem_space_get_size();
+    while (zone_adr < adr_fin) {
+        if (zone_adr == (void*)cell_adr) { // on a une zone libre
+            zone_size = cell_adr->size;
+            if (zone_adr + zone_size < adr_fin)
+                free_memory_size += zone_size;
+            prec_adr = cell_adr;
+            cell_adr = cell_adr->next;
+        }
+        else {
+            zone_size = ((bb*)zone_adr)->size;
+        }
+        zone_adr += zone_size;
+    }
+
+    if (prec_adr && (void*)prec_adr + prec_adr->size > adr_fin)
+        used_memory_size = mem_space_get_size() - prec_adr->size;
+    else
+        used_memory_size = mem_space_get_size();
+    
+    return (double)free_memory_size / used_memory_size * 100.;
+}
+
 
 
 void frag_worst() {
@@ -51,7 +93,8 @@ void frag_worst() {
         mem_alloc(3000);
         adr = adr2;
     }
-    printf("Estimation frag (first) : %f %%\n", estimation_fragmentation(2500));
+    printf("Estimation frag en nombre (first) : %f %%\n", estimation_fragmentation());
+    printf("Estimation frag en taille (first) : %f %%\n", estimation_fragmentation2());
 
     // worst fit
     mem_init();
@@ -65,7 +108,8 @@ void frag_worst() {
         mem_alloc(3000);
         adr = adr2;
     }
-    printf("Estimation frag (worst) : %f %%\n", estimation_fragmentation(2500));
+    printf("Estimation frag en nombre (worst) : %f %%\n", estimation_fragmentation());
+    printf("Estimation frag en taille (worst) : %f %%\n", estimation_fragmentation2());
 
     // best fit
     mem_init();
@@ -79,7 +123,8 @@ void frag_worst() {
         mem_alloc(3000);
         adr = adr2;
     }
-    printf("Estimation frag (best) : %f %%\n", estimation_fragmentation(2500));
+    printf("Estimation frag en nombre (best) : %f %%\n", estimation_fragmentation());
+    printf("Estimation frag en taille (best) : %f %%\n", estimation_fragmentation2());
     printf("---------------------------------\n");
 }
 
@@ -109,7 +154,8 @@ void frag_best() {
     mem_alloc(10000);
     mem_alloc(10000);
 
-    printf("Estimation frag (first) : %f %%\n", estimation_fragmentation(11000));
+    printf("Estimation frag en nombre (first) : %f %%\n", estimation_fragmentation());
+    printf("Estimation frag en taille (first) : %f %%\n", estimation_fragmentation2());
 
 
     // worst_fit
@@ -134,7 +180,8 @@ void frag_best() {
     mem_alloc(10000);
     mem_alloc(10000);
 
-    printf("Estimation frag (worst) : %f %%\n", estimation_fragmentation(11000));
+    printf("Estimation frag en nombre (worst) : %f %%\n", estimation_fragmentation());
+    printf("Estimation frag en taille (worst) : %f %%\n", estimation_fragmentation2());
 
 
     // best fit
@@ -159,62 +206,87 @@ void frag_best() {
     mem_alloc(10000);
     mem_alloc(10000);
 
-    printf("Estimation frag (best) : %f %%\n", estimation_fragmentation(11000));
+    printf("Estimation frag en nombre (best) : %f %%\n", estimation_fragmentation());
+    printf("Estimation frag en taille (best) : %f %%\n", estimation_fragmentation2());
     printf("---------------------------------\n");
 }
 
 
 void frag_first() {
-    void *tab_alloc[4];
+    void *tab_alloc[7];
 
     // first fit
     mem_init();
     mem_set_fit_handler(mem_first_fit);
     tab_alloc[0] = mem_alloc(5000); mem_alloc(3000);
-    tab_alloc[1] = mem_alloc(3000); mem_alloc(3000);
-    tab_alloc[2] = mem_alloc(2000); mem_alloc(3000);
-    tab_alloc[3] = mem_alloc(4500); mem_alloc(3000);
+    tab_alloc[1] = mem_alloc(1000); mem_alloc(3000);
+    tab_alloc[2] = mem_alloc(5000); mem_alloc(3000);
+    tab_alloc[3] = mem_alloc(3000); mem_alloc(3000);
+    tab_alloc[4] = mem_alloc(2000); mem_alloc(3000);
+    tab_alloc[5] = mem_alloc(4500); mem_alloc(3000);
+    tab_alloc[6] = mem_alloc(1500); mem_alloc(3000);
 
-    for (unsigned int i = 0; i < 4; i++)
+    for (unsigned int i = 0; i < 7; i++)
         mem_free(tab_alloc[i]);
 
     mem_alloc(4000);
     mem_alloc(1000-sizeof(bb));
+    mem_alloc(1000);
+    mem_alloc(4000);
+    mem_alloc(1000-sizeof(bb));
+    mem_alloc(1000);
 
-    printf("Estimation frag (first) : %f %%\n", estimation_fragmentation(6000));
+    printf("Estimation frag en nombre (first) : %f %%\n", estimation_fragmentation());
+    printf("Estimation frag en taille (first) : %f %%\n", estimation_fragmentation2());
 
     // worst fit
     mem_init();
     mem_set_fit_handler(mem_worst_fit);
     tab_alloc[0] = mem_alloc(5000); mem_alloc(3000);
-    tab_alloc[1] = mem_alloc(3000); mem_alloc(3000);
-    tab_alloc[2] = mem_alloc(2000); mem_alloc(3000);
-    tab_alloc[3] = mem_alloc(4500); mem_alloc(3000);
+    tab_alloc[1] = mem_alloc(1000); mem_alloc(3000);
+    tab_alloc[2] = mem_alloc(5000); mem_alloc(3000);
+    tab_alloc[3] = mem_alloc(3000); mem_alloc(3000);
+    tab_alloc[4] = mem_alloc(2000); mem_alloc(3000);
+    tab_alloc[5] = mem_alloc(4500); mem_alloc(3000);
+    tab_alloc[6] = mem_alloc(1500); mem_alloc(3000);
 
-    for (unsigned int i = 0; i < 4; i++)
+    for (unsigned int i = 0; i < 7; i++)
         mem_free(tab_alloc[i]);
 
     mem_alloc(4000);
     mem_alloc(1000-sizeof(bb));
+    mem_alloc(1000);
+    mem_alloc(4000);
+    mem_alloc(1000-sizeof(bb));
+    mem_alloc(1000);
 
-    printf("Estimation frag (worst) : %f %%\n", estimation_fragmentation(6000));
+    printf("Estimation frag en nombre (worst) : %f %%\n", estimation_fragmentation());
+    printf("Estimation frag en taille (worst) : %f %%\n", estimation_fragmentation2());
 
 
     // best fit
     mem_init();
     mem_set_fit_handler(mem_best_fit);
     tab_alloc[0] = mem_alloc(5000); mem_alloc(3000);
-    tab_alloc[1] = mem_alloc(3000); mem_alloc(3000);
-    tab_alloc[2] = mem_alloc(2000); mem_alloc(3000);
-    tab_alloc[3] = mem_alloc(4500); mem_alloc(3000);
+    tab_alloc[1] = mem_alloc(1000); mem_alloc(3000);
+    tab_alloc[2] = mem_alloc(5000); mem_alloc(3000);
+    tab_alloc[3] = mem_alloc(3000); mem_alloc(3000);
+    tab_alloc[4] = mem_alloc(2000); mem_alloc(3000);
+    tab_alloc[5] = mem_alloc(4500); mem_alloc(3000);
+    tab_alloc[6] = mem_alloc(1500); mem_alloc(3000);
 
-    for (unsigned int i = 0; i < 4; i++)
+    for (unsigned int i = 0; i < 7; i++)
         mem_free(tab_alloc[i]);
 
     mem_alloc(4000);
     mem_alloc(1000-sizeof(bb));
+    mem_alloc(1000);
+    mem_alloc(4000);
+    mem_alloc(1000-sizeof(bb));
+    mem_alloc(1000);
 
-    printf("Estimation frag (best) : %f %%\n", estimation_fragmentation(6000));
+    printf("Estimation frag en nombre (best) : %f %%\n", estimation_fragmentation());
+    printf("Estimation frag en taille (best) : %f %%\n", estimation_fragmentation2());
 }
 
 

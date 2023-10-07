@@ -1,10 +1,84 @@
-#include "mem_space.h"
-#include "mem.h"
-#include "mem_os.h"
-
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#if defined(DEBUG)
+#define debug(...) fprintf(stderr, __VA_ARGS__)
+#else
+#define debug(...)
+#endif
+
+//--------------------------------------
+// Structures utilisées
+//--------------------------------------
+// cellule presente au debut d'un bloc libre
+typedef struct fb_ {
+    size_t size;
+    struct fb_ *next; // chainaige vers le prochain bloc libre
+} fb;
+typedef fb mem_free_block_t;
+
+// liste chainee des zones libres
+typedef struct { fb *first; } header;
+typedef header mem_header_t;
+
+// structure presente au debut de chaque bloc occupe
+typedef struct { size_t size; } bb;
+typedef bb mem_busy_block_t;
+
+//-------------------------------------------------------------
+// Stratégies d'allocation
+//-------------------------------------------------------------
+mem_free_block_t *mem_first_fit(mem_free_block_t *first_free_block, size_t wanted_size) {
+    // schema de recherche classique
+    mem_free_block_t *cell = first_free_block;
+    while (cell && cell->size < wanted_size)
+        cell = cell->next;
+
+    return cell;
+}
+
+//-------------------------------------------------------------
+mem_free_block_t *mem_best_fit(mem_free_block_t *first_free_block, size_t wanted_size) {
+    mem_free_block_t *best = NULL;
+    mem_free_block_t *cell = first_free_block;
+
+    // parcours de toute les cellules de blocs libres
+    while (cell) {
+        // calcul du meilleur bloc
+        if (best) { // si un meilleur bloc -> comparaison
+            if (cell->size >= wanted_size && best->size > cell->size) // et si mieux ajuste
+                best = cell; // alors c'est le meilleur bloc jusqu'a maintenant
+        }
+        else { // si pas de meilleur bloc
+            if (cell->size >= wanted_size) // et taille suffisante
+                best = cell; // alors c'est un meilleur bloc
+        }
+
+        cell = cell->next; // au suivant !
+    }
+    
+    return best;
+}
+
+//-------------------------------------------------------------
+mem_free_block_t *mem_worst_fit(mem_free_block_t *first_free_block, size_t wanted_size) {
+    mem_free_block_t *block = first_free_block;
+    mem_free_block_t *worst = NULL;
+    size_t size_max = 0; // taille max initiale = 0
+
+    while (block) {
+        // si c'est mieux qu'auparavant
+        if (block->size > size_max && block->size >= wanted_size) {
+            worst = block;
+            size_max = block->size;
+        }
+
+        block = block->next; // au suivant
+    }
+
+    return worst;
+}
 
 int main(int argc, char const *argv[])
 {
