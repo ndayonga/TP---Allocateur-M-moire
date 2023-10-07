@@ -50,6 +50,9 @@ void *mem_alloc(size_t size) {
     size_t wanted = (size + sizeof(bb) > sizeof(fb)) ? size + sizeof(bb) : sizeof(fb);
     size_t real_size;
 
+    // get_free_block = mem_best_fit;
+    // get_free_block = mem_worst_fit;
+
     // on recupere le bloc libre qui nous interesse
     mem_free_block_t *free_block = (*get_free_block)(tete->first, wanted);
 
@@ -135,7 +138,7 @@ void mem_free(void *zone) {
     mem_free_block_t* freeblock = (mem_free_block_t*)busy;
     freeblock->size = blocksize;
 
-    if(tete->first == NULL || tete->first > freeblock) { // S'il n'y a pas de bloc libre
+    if(tete->first == NULL || tete->first > freeblock) { // S'il n'y a pas de bloc libre ou s'il n'y a pas de zone libre avant la zone que l'on veut libérer
         freeblock->next = tete->first;
         tete->first = freeblock;
 
@@ -149,7 +152,7 @@ void mem_free(void *zone) {
     else if(tete->first < freeblock){ // Si la zone que l'on veut libérer vient après le premier bloc libre
         // recherche du precedent
         mem_free_block_t *prec = tete->first;
-        while(prec->next < freeblock) prec = prec->next;
+        while(prec->next != NULL && prec->next < freeblock) prec = prec->next;
         if (!prec) {
             fprintf(stderr, "Chainage invalide !"); exit(1);
         }
