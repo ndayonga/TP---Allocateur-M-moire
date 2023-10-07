@@ -10,14 +10,22 @@
 #include <assert.h>
 #include <stdint.h>
 
-#define MIN_SIZE_BLOCk (sizeof(fb) < sizeof(bb) ? sizeof(bb) : sizeof(fb))
+
+#define max(a, b)       ((a) < (b) ? (b) : (a))
+#define MIN_SIZE_BLOCK  max(aligned_sizeof(bb), aligned_sizeof(fb))
+
+//-----------------------
+// ALIGNEMENT
+//-----------------------
+#define ALIGNMENT 16
+#define aligned_size(s) (\
+    (((s) % ALIGNMENT) == 0) ? (s) : \
+    ((s) + ALIGNMENT - ((s) % ALIGNMENT)) \
+)
+#define aligned_sizeof(s) aligned_size(sizeof(s))
+
 
 mem_fit_function_t *get_free_block = mem_first_fit;
-
-
-
-
-
 
 //-------------------------------------------------------------
 // mem_init
@@ -29,11 +37,14 @@ mem_fit_function_t *get_free_block = mem_first_fit;
 void mem_init() {
     // on place la tete de la liste des zones libres en memoire
     mem_header_t* l = mem_space_get_addr();
-    l->first = mem_space_get_addr() + sizeof(mem_header_t);
+    l->first = mem_space_get_addr() + aligned_sizeof(mem_header_t);
 
     // on replit le bloc en debut de 
     fb* first = l->first;
-    first->size = mem_space_get_size() - sizeof(mem_header_t);
+    size_t size = mem_space_get_size() - aligned_sizeof(mem_header_t);
+    size_t mod = size % 8;
+    if (mod == 0) first->size = size;
+    else first->size = size - mod;
     first->next = NULL;
 }
 
@@ -54,7 +65,7 @@ void *mem_alloc(size_t size) {
      * - au moins la taille d'une cellule libre (structure fb) 
      *    garantissant la possibilité de libération du bloc
      */
-    size_t wanted = (size + sizeof(bb) > MIN_SIZE_BLOCk) ? size + sizeof(bb) : MIN_SIZE_BLOCk;
+    size_t wanted = max(aligned_size(size) + aligned_sizeof(bb), MIN_SIZE_BLOCK);
     size_t real_size;
 
     // get_free_block = mem_best_fit;
@@ -67,7 +78,7 @@ void *mem_alloc(size_t size) {
     if (!free_block) return NULL;
 
     // Cas ou on peut mettre un bloc libre de MIN_SIZE_BLOCK octets
-    if (free_block->size > wanted + MIN_SIZE_BLOCk) {
+    if (free_block->size > wanted + MIN_SIZE_BLOCK) {
         // on cree la nouvelle fb en fin de zone
         mem_free_block_t *new_fb = ((void*)free_block + wanted);
         new_fb->size = free_block->size - wanted;
@@ -109,7 +120,7 @@ void *mem_alloc(size_t size) {
     // construction du busy bloc
     mem_busy_block_t *bb = (mem_busy_block_t*) free_block;
     bb->size = real_size;
-    return ((void*)free_block) + sizeof(bb);
+    return ((void*)free_block) + aligned_sizeof(bb);
 }
 
 //-------------------------------------------------------------
@@ -117,8 +128,8 @@ void *mem_alloc(size_t size) {
 //-------------------------------------------------------------
 size_t mem_get_size(void * zone)
 {
-    mem_busy_block_t *bb = zone - sizeof(mem_busy_block_t);
-    return bb->size - sizeof(mem_busy_block_t);
+    mem_busy_block_t *bb = zone - aligned_sizeof(mem_busy_block_t);
+    return bb->size - aligned_sizeof(mem_busy_block_t);
 }
 
 //-------------------------------------------------------------
@@ -136,10 +147,10 @@ void mem_free(void *zone) {
         fprintf(stderr, "mem_free : pointeur hors zone mémoire !\n"); exit(1);
     }
 
-    // bloc occupee
-    mem_busy_block_t* busy = zone - sizeof(mem_busy_block_t);    // Début de la zone à libérer
+    // bloc occupee    // Début de la zone à libérer
+    mem_busy_block_t* busy = zone - aligned_sizeof(mem_busy_block_t);
     size_t blocksize = busy->size;
-    if (blocksize < sizeof(mem_free_block_t)) {
+    if (blocksize < MIN_SIZE_BLOCK) {
         fprintf(stderr, "mem_free : ointeur invalide !\n"); exit(1);
     }
 
@@ -169,7 +180,7 @@ void mem_free(void *zone) {
         if (!prec) {
             fprintf(stderr, "mem_free : chainage invalide !\n"); exit(1);
         }
-        if (prec->size < sizeof(mem_free_block_t)) {
+        if (prec->size < MIN_SIZE_BLOCK) {
             fprintf(stderr, "mem_free: chainage corrompu !\n"); exit(1);
         }
         if (prec->next == freeblock) {
@@ -201,7 +212,7 @@ void mem_show(void (*print)(void *, size_t, int free)) {
     // adresse et taille de la zone à afficher
     void *adr_debut = mem_space_get_addr();
     void *zone_adr = adr_debut;
-    size_t zone_size = sizeof(mem_header_t);
+    size_t zone_size = aligned_sizeof(mem_header_t);
 
     // cellule de la premiere zone libre
     mem_free_block_t* cell_adr = ((mem_header_t*)zone_adr)->first;
@@ -209,7 +220,7 @@ void mem_show(void (*print)(void *, size_t, int free)) {
     // header est une zone occupee
     print(0, zone_size, 0);
     // zone suivante
-    zone_adr += sizeof(mem_header_t);
+    zone_adr += zone_size;
     
     // on va parcourir jusqu'a l'@ de fin
     void *adr_fin = mem_space_get_addr()+mem_space_get_size()-1;
@@ -247,7 +258,7 @@ mem_free_block_t *mem_first_fit(mem_free_block_t *first_free_block, size_t wante
     mem_free_block_t *cell = first_free_block;
     while (cell && cell->size < wanted_size) {
         // cas d'erreur
-        if (cell->size < sizeof(mem_free_block_t)) {
+        if (cell->size < MIN_SIZE_BLOCK) {
             // tout bloc faut au moins sizeof(fb) octets
             fprintf(stderr, "mem_alloc : chainage corrompu !\n");
             exit(1);
@@ -277,7 +288,7 @@ mem_free_block_t *mem_best_fit(mem_free_block_t *first_free_block, size_t wanted
     // parcours de toute les cellules de blocs libres
     while (cell) {
         // erreur
-        if (cell->size < sizeof(mem_free_block_t)) {
+        if (cell->size < MIN_SIZE_BLOCK) {
             // tout bloc faut au moins sizeof(fb) octets
             fprintf(stderr, "mem_alloc : chainage corrompu !\n");
             exit(1);
@@ -318,7 +329,7 @@ mem_free_block_t *mem_worst_fit(mem_free_block_t *first_free_block, size_t wante
 
     while (block) {
         // erreur
-        if (block->size < sizeof(mem_free_block_t)) {
+        if (block->size < MIN_SIZE_BLOCK) {
             // tout bloc faut au moins sizeof(fb) octets
             fprintf(stderr, "mem_alloc : chainage corrompu !\n");
             exit(1);

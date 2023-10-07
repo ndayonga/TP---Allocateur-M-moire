@@ -6,13 +6,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define ALIGNMENT 16
+#define aligned_size(s) (\
+    ((s) % ALIGNMENT) == 0 ? (s) : \
+    ((s) + ALIGNMENT - (((size_t)(s)) % ALIGNMENT)) \
+)
+
+
 void afficher_zone(void *adresse, size_t taille, int free) {
     printf("Zone %s, Adresse : %lu, Taille : %lu\n", free ? "libre" : "occupee",
            (unsigned long)adresse, (unsigned long)taille);
 }
 
 void *adrfb1, *adrfb2, *adrfb3;
-
 
 // Memoire apres init
 // _____________________________________________________________________________
@@ -37,26 +43,26 @@ void init(void) {
     header *h = mem_space_get_addr();
     h->first = NULL;
 
-    assert((size_t)adr1 == adr_base + sizeof(header) + sizeof(bb));
-    assert(adr2 == adr1 + 64 + sizeof(bb));
-    assert(adrfb1 == adr2 + 272 + sizeof(bb));
+    assert((size_t)adr1 == adr_base + aligned_size(sizeof(header)) + aligned_size(sizeof(bb)));
+    assert(adr2 == adr1 + 64 + aligned_size(sizeof(bb)));
+    assert(adrfb1 == adr2 + 272 + aligned_size(sizeof(bb)));
 
     // on libere adrfb1 adrfb2 et adrfb3 à la main
     fb *libre;
     
-    libre = adrfb1 - sizeof(bb);
-    libre->size = 80 + sizeof(bb);
-    libre->next = adrfb2 - sizeof(bb);
+    libre = adrfb1 - aligned_size(sizeof(bb));
+    libre->size = aligned_size(80) + aligned_size(sizeof(bb));
+    libre->next = adrfb2 - aligned_size(sizeof(bb));
 
-    libre = adrfb2 - sizeof(bb);
-    libre->size = sizeof(fb);
-    libre->next = adrfb3 - sizeof(bb);
+    libre = adrfb2 - aligned_size(sizeof(bb));
+    libre->size = aligned_size(sizeof(fb));
+    libre->next = adrfb3 - aligned_size(sizeof(bb));
 
-    libre = adrfb3 - sizeof(bb);
-    libre->size = 108 + sizeof(bb);
+    libre = adrfb3 - aligned_size(sizeof(bb));
+    libre->size = 108 + aligned_size(sizeof(bb));
     libre->next = NULL;
 
-    h->first = adrfb1 - sizeof(bb);
+    h->first = adrfb1 - aligned_size(sizeof(bb));
 }
 
 void test_first_fit(void) {

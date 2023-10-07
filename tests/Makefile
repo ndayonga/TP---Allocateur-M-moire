@@ -11,6 +11,7 @@ CC=gcc
 
 # build flags
 CFLAGS= -Wall -Werror -g
+#CFLAGS+= -DALIGNMENT=8
 CFLAGS+= -I../headers
 #CFLAGS+= -DDEBUG
 LDFLAGS=

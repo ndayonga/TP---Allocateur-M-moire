@@ -15,17 +15,18 @@ CC=gcc
 
 CXXFLAGS= $(HOST32) -Wall -Werror -std=c++20 -g
 CFLAGS= $(HOST32) -Wall -Werror -std=c17 -g -DMEMORY_SIZE=128000
+#CFLAGS+= -DALIGNMENT=8
 CFLAGS+= -DDEBUG
 CFLAGS+= -I../headers
 LDFLAGS= $(HOST32)
 INCLUDE=.
 LIB_DIR=../libs
 
-PROGRAMS=mem_shell libmalloc.so libmalloc_core_static.a 
+PROGRAMS=mem_shell libmalloc.so libmalloc_core_static.a estimation_frag
 
 .PHONY: all place_libs
 
-all: $(PROGRAMS) place_libs estimation_frag
+all: $(PROGRAMS) place_libs
 
 # dépendances des binaires
 DEPS=mem.o mem_space.o
