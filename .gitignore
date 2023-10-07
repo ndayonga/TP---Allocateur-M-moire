@@ -10,6 +10,7 @@ googletest*
 *.a
 *.so
 src/mem_shell
+src/estimation_frag
 tests/test_fusion
 tests/test_init
 tests/test_unit

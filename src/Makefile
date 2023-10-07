@@ -25,7 +25,7 @@ PROGRAMS=mem_shell libmalloc.so libmalloc_core_static.a
 
 .PHONY: all place_libs
 
-all: $(PROGRAMS) place_libs
+all: $(PROGRAMS) place_libs estimation_frag
 
 # dépendances des binaires
 DEPS=mem.o mem_space.o
