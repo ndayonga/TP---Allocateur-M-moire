@@ -41,6 +41,23 @@ int main(void)
     mem_free(adr2);
     printf("---------------------------\n");
     mem_show(&afficher_zone);
+    printf("---------------------------\n");
+
+    mem_init();
+    adr = mem_alloc(1024);
+    adr2 = mem_alloc(1024);
+    void *adr3 = mem_alloc(1024);
+    printf("---------------------------\n");
+    mem_show(&afficher_zone);
+    mem_free(adr);
+    printf("---------------------------\n");
+    mem_show(&afficher_zone);
+    mem_free(adr2);
+    printf("---------------------------\n");
+    mem_show(&afficher_zone);
+    mem_free(adr3);
+    printf("---------------------------\n");
+    mem_show(&afficher_zone);
 
     return 0;
 }

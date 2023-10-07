@@ -30,4 +30,9 @@ tests_c/test_frag
 tests_c/test_fusion
 tests_c/test_fusion_bzero
 tests_c/test_init
+tests/test_memalloc
+tests/test_free
+tests/test_fragmentation
+tests/test_fit_functions
+tests/test_memshow
 /build*
