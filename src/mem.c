@@ -122,6 +122,8 @@ size_t mem_get_size(void * zone)
 **/
 void mem_free(void *zone) {
     // zone memoire
+    if(zone == NULL)
+        return;
     mem_header_t* tete = mem_space_get_addr();
     if ((void*)tete+sizeof(mem_header_t) > zone || zone > (void*)tete+mem_space_get_size()) {
         fprintf(stderr, "Pointeur hors zone mémoire !"); exit(1);
