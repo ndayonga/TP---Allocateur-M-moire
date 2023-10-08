@@ -151,7 +151,7 @@ void mem_free(void *zone) {
     mem_busy_block_t* busy = zone - aligned_sizeof(mem_busy_block_t);
     size_t blocksize = busy->size;
     if (blocksize < MIN_SIZE_BLOCK) {
-        fprintf(stderr, "mem_free : ointeur invalide !\n"); exit(1);
+        fprintf(stderr, "mem_free : pointeur invalide !\n"); exit(1);
     }
 
     // creation du free block
@@ -171,12 +171,20 @@ void mem_free(void *zone) {
     }
 
     // Si la zone que l'on veut libérer vient après le premier bloc libre
-    else if(tete->first < freeblock) { 
+    else if(tete->first <= freeblock) { 
         // recherche du precedent
         mem_free_block_t *prec = tete->first;
-        while(prec->next && prec->next <= freeblock)
+        if(prec == freeblock){
+            fprintf(stderr, "mem_free: zone déjà libre !\n"); exit(1);
+        }
+
+        while(prec->next && prec->next <= freeblock){
+            if (prec->size < MIN_SIZE_BLOCK) {
+                fprintf(stderr, "mem_free: chainage corrompu !\n"); exit(1);
+            }
             prec = prec->next;
-        
+        }
+
         if (!prec) {
             fprintf(stderr, "mem_free : chainage invalide !\n"); exit(1);
         }
@@ -203,6 +211,7 @@ void mem_free(void *zone) {
         }
     }
 }
+
 
 //-------------------------------------------------------------
 // Itérateur(parcours) sur le contenu de l'allocateur
