@@ -6,6 +6,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define ALIGNMENT 16
+#define aligned_size(s) (\
+    (((s) % ALIGNMENT) == 0) ? (s) : \
+    ((s) + ALIGNMENT - ((s) % ALIGNMENT)) \
+)
+#define aligned_sizeof(s) aligned_size(sizeof(s))
+
 /**
  * On se donne une métrique (pas térrible...)
  * Compte le nombre de zones libres 
@@ -18,7 +25,7 @@ double estimation_fragmentation() {
 
     // 1ere cellule libre
     fb* cell_adr = ((header*)zone_adr)->first;
-    zone_adr += sizeof(header);
+    zone_adr += aligned_sizeof(header);
     size_t zone_size;
 
     // on va parcourir jusqu'a l'@ de fin
@@ -51,7 +58,7 @@ double estimation_fragmentation2() {
     // 1ere cellule libre
     fb *cell_adr = ((header*)zone_adr)->first;
     fb *prec_adr = NULL;
-    zone_adr += sizeof(header);
+    zone_adr += aligned_sizeof(header);
     size_t zone_size;
 
     // on va parcourir jusqu'a l'@ de fin
