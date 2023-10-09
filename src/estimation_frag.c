@@ -77,14 +77,14 @@ double estimation_fragmentation2() {
         zone_adr += zone_size;
     }
 
-    if (prec_adr && (void*)prec_adr + prec_adr->size > adr_fin)
+    // memoire utilisé sauf la fin si elle est libre
+    if (prec_adr && (void*)prec_adr + prec_adr->size >= adr_fin)
         used_memory_size = mem_space_get_size() - prec_adr->size;
     else
         used_memory_size = mem_space_get_size();
     
     return (double)free_memory_size / used_memory_size * 100.;
 }
-
 
 
 void frag_worst() {
@@ -220,52 +220,41 @@ void frag_best() {
 
 
 void frag_first() {
-    void *tab_alloc[7];
+    void *tab_alloc[4];
 
     // first fit
     mem_init();
     mem_set_fit_handler(mem_first_fit);
-    tab_alloc[0] = mem_alloc(5000); mem_alloc(3000);
-    tab_alloc[1] = mem_alloc(1000); mem_alloc(3000);
-    tab_alloc[2] = mem_alloc(5000); mem_alloc(3000);
-    tab_alloc[3] = mem_alloc(3000); mem_alloc(3000);
-    tab_alloc[4] = mem_alloc(2000); mem_alloc(3000);
-    tab_alloc[5] = mem_alloc(4500); mem_alloc(3000);
-    tab_alloc[6] = mem_alloc(1500); mem_alloc(3000);
+    tab_alloc[0] = mem_alloc(6400); mem_alloc(1280);
+    tab_alloc[1] = mem_alloc(1280); mem_alloc(1280);
+    tab_alloc[2] = mem_alloc(4096); mem_alloc(1280);
+    tab_alloc[3] = mem_alloc(1536); mem_alloc(1280);
 
-    for (unsigned int i = 0; i < 7; i++)
+    for (unsigned int i = 0; i < 4; i++)
         mem_free(tab_alloc[i]);
 
-    mem_alloc(4000);
-    mem_alloc(1000-sizeof(bb));
-    mem_alloc(1000);
-    mem_alloc(4000);
-    mem_alloc(1000-sizeof(bb));
-    mem_alloc(1000);
+    mem_alloc(3968);
+    mem_alloc(6400-3968-aligned_sizeof(bb));
+    mem_alloc(1280);
 
     printf("Estimation frag en nombre (first) : %f %%\n", estimation_fragmentation());
     printf("Estimation frag en taille (first) : %f %%\n", estimation_fragmentation2());
 
+
     // worst fit
     mem_init();
     mem_set_fit_handler(mem_worst_fit);
-    tab_alloc[0] = mem_alloc(5000); mem_alloc(3000);
-    tab_alloc[1] = mem_alloc(1000); mem_alloc(3000);
-    tab_alloc[2] = mem_alloc(5000); mem_alloc(3000);
-    tab_alloc[3] = mem_alloc(3000); mem_alloc(3000);
-    tab_alloc[4] = mem_alloc(2000); mem_alloc(3000);
-    tab_alloc[5] = mem_alloc(4500); mem_alloc(3000);
-    tab_alloc[6] = mem_alloc(1500); mem_alloc(3000);
+    tab_alloc[0] = mem_alloc(6400); mem_alloc(1280);
+    tab_alloc[1] = mem_alloc(1280); mem_alloc(1280);
+    tab_alloc[2] = mem_alloc(4096); mem_alloc(1280);
+    tab_alloc[3] = mem_alloc(1536); mem_alloc(1280);
 
-    for (unsigned int i = 0; i < 7; i++)
+    for (unsigned int i = 0; i < 4; i++)
         mem_free(tab_alloc[i]);
 
-    mem_alloc(4000);
-    mem_alloc(1000-sizeof(bb));
-    mem_alloc(1000);
-    mem_alloc(4000);
-    mem_alloc(1000-sizeof(bb));
-    mem_alloc(1000);
+    mem_alloc(3968);
+    mem_alloc(6400-3968-aligned_sizeof(bb));
+    mem_alloc(1280);
 
     printf("Estimation frag en nombre (worst) : %f %%\n", estimation_fragmentation());
     printf("Estimation frag en taille (worst) : %f %%\n", estimation_fragmentation2());
@@ -274,23 +263,17 @@ void frag_first() {
     // best fit
     mem_init();
     mem_set_fit_handler(mem_best_fit);
-    tab_alloc[0] = mem_alloc(5000); mem_alloc(3000);
-    tab_alloc[1] = mem_alloc(1000); mem_alloc(3000);
-    tab_alloc[2] = mem_alloc(5000); mem_alloc(3000);
-    tab_alloc[3] = mem_alloc(3000); mem_alloc(3000);
-    tab_alloc[4] = mem_alloc(2000); mem_alloc(3000);
-    tab_alloc[5] = mem_alloc(4500); mem_alloc(3000);
-    tab_alloc[6] = mem_alloc(1500); mem_alloc(3000);
+    tab_alloc[0] = mem_alloc(6400); mem_alloc(1280);
+    tab_alloc[1] = mem_alloc(1280); mem_alloc(1280);
+    tab_alloc[2] = mem_alloc(4096); mem_alloc(1280);
+    tab_alloc[3] = mem_alloc(1536); mem_alloc(1280);
 
-    for (unsigned int i = 0; i < 7; i++)
+    for (unsigned int i = 0; i < 4; i++)
         mem_free(tab_alloc[i]);
 
-    mem_alloc(4000);
-    mem_alloc(1000-sizeof(bb));
-    mem_alloc(1000);
-    mem_alloc(4000);
-    mem_alloc(1000-sizeof(bb));
-    mem_alloc(1000);
+    mem_alloc(3968);
+    mem_alloc(6400-3968-aligned_sizeof(bb));
+    mem_alloc(1280);
 
     printf("Estimation frag en nombre (best) : %f %%\n", estimation_fragmentation());
     printf("Estimation frag en taille (best) : %f %%\n", estimation_fragmentation2());

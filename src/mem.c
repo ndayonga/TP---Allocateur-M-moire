@@ -174,7 +174,9 @@ void mem_free(void *zone) {
     else if(tete->first <= freeblock) { 
         // recherche du precedent
         mem_free_block_t *prec = tete->first;
-        if(prec == freeblock){
+
+        // dans une zone libre !!!
+        if(prec == freeblock || (prec < freeblock && (void*)freeblock < (void*)prec + prec->size)){
             fprintf(stderr, "mem_free: zone déjà libre !\n"); exit(1);
         }
 

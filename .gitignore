@@ -36,4 +36,5 @@ tests/test_free
 tests/test_fragmentation
 tests/test_fit_functions
 tests/test_memshow
+tests/test_robustesse
 /build*
