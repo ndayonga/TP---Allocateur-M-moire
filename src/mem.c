@@ -42,7 +42,7 @@ void mem_init() {
     // on replit le bloc en debut de 
     fb* first = l->first;
     size_t size = mem_space_get_size() - aligned_sizeof(mem_header_t);
-    size_t mod = size % 8;
+    size_t mod = size % ALIGNMENT;
     if (mod == 0) first->size = size;
     else first->size = size - mod;
     first->next = NULL;
@@ -74,12 +74,12 @@ void *mem_alloc(size_t size) {
     // on recupere le bloc libre qui nous interesse
     mem_free_block_t *free_block = (*get_free_block)(tete->first, wanted);
 
-    // si y'en a pas on renvoie NULL
+    // s'il n'y en a pas on renvoie NULL
     if (!free_block) return NULL;
 
-    // Cas ou on peut mettre un bloc libre de MIN_SIZE_BLOCK octets
+    // Cas ou on peut mettre un bloc libre d'au moins MIN_SIZE_BLOCK octets
     if (free_block->size > wanted + MIN_SIZE_BLOCK) {
-        // on cree la nouvelle fb en fin de zone
+        // on cree le nouveau bloc libre en fin de zone qui sera alloue
         mem_free_block_t *new_fb = ((void*)free_block + wanted);
         new_fb->size = free_block->size - wanted;
         new_fb->next = free_block->next;
@@ -87,7 +87,7 @@ void *mem_alloc(size_t size) {
         if (tete->first == free_block) { // on est la tete
             tete->first = new_fb;
         }
-        else { // sinon on va chercher le bloc qui precede
+        else { // sinon on va chercher le bloc qui precede le bloc qui sera alloue
             mem_free_block_t *prec = tete->first;
             while(prec->next != free_block)
                 prec = prec->next;
@@ -117,7 +117,7 @@ void *mem_alloc(size_t size) {
         real_size = free_block->size;
     }
 
-    // construction du busy bloc
+    // construction du busy block
     mem_busy_block_t *bb = (mem_busy_block_t*) free_block;
     bb->size = real_size;
     return ((void*)free_block) + aligned_sizeof(bb);
@@ -147,7 +147,7 @@ void mem_free(void *zone) {
         fprintf(stderr, "mem_free : pointeur hors zone mémoire !\n"); exit(1);
     }
 
-    // bloc occupee    // Début de la zone à libérer
+    // bloc occupe    // Début de la zone à libérer
     mem_busy_block_t* busy = zone - aligned_sizeof(mem_busy_block_t);
     size_t blocksize = busy->size;
     if (blocksize < MIN_SIZE_BLOCK) {
