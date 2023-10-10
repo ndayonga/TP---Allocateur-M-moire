@@ -231,10 +231,10 @@ void mem_show(void (*print)(void *, size_t, int free)) {
     // zone suivante
     zone_adr += zone_size;
     
-    // on va parcourir jusqu'a l'@ de fin
     size_t mem_size = mem_space_get_size() - (mem_space_get_size() % ALIGNMENT);
     void *adr_fin = mem_space_get_addr()+mem_size-1;
     
+    // on va parcourir jusqu'a l'@ de fin
     while (zone_adr < adr_fin) {
         if (zone_adr == (void*)cell_adr) { // on a une zone libre
             print((void*)((size_t)zone_adr-(size_t)adr_debut), cell_adr->size, 1);
