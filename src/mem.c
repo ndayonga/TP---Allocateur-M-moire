@@ -68,23 +68,21 @@ void *mem_alloc(size_t size) {
     size_t wanted = max(aligned_size(size) + aligned_sizeof(bb), MIN_SIZE_BLOCK);
     size_t real_size;
 
-    // get_free_block = mem_best_fit;
-    // get_free_block = mem_worst_fit;
-
     // on recupere le bloc libre qui nous interesse
     mem_free_block_t *free_block = (*get_free_block)(tete->first, wanted);
 
     // s'il n'y en a pas on renvoie NULL
     if (!free_block) return NULL;
 
-    // Cas ou on peut mettre un bloc libre d'au moins MIN_SIZE_BLOCK octets
+    // Cas ou on peut mettre un bloc libre d'au moins MIN_SIZE_BLOCK octets 
+    // après le bloc à allouer
     if (free_block->size > wanted + MIN_SIZE_BLOCK) {
         // on cree le nouveau bloc libre en fin de zone qui sera alloue
-        mem_free_block_t *new_fb = ((void*)free_block + wanted);
+        mem_free_block_t *new_fb = (void*)free_block + wanted;
         new_fb->size = free_block->size - wanted;
         new_fb->next = free_block->next;
 
-        if (tete->first == free_block) { // on est la tete
+        if (tete->first == free_block) { // Si le bloc à allouer est le premier bloc libre de la memoire
             tete->first = new_fb;
         }
         else { // sinon on va chercher le bloc qui precede le bloc qui sera alloue
@@ -102,7 +100,7 @@ void *mem_alloc(size_t size) {
     // cas ou on occupe tout le bloc
     else {
         if (tete->first == free_block) {
-            // si on est la tete, on passe au suivant
+            // si bloc a allouer est le premier bloc libre, on passe au suivant
             tete->first = free_block->next;
         }
         else{
@@ -120,7 +118,7 @@ void *mem_alloc(size_t size) {
     // construction du busy block
     mem_busy_block_t *bb = (mem_busy_block_t*) free_block;
     bb->size = real_size;
-    return ((void*)free_block) + aligned_sizeof(bb);
+    return (void*)free_block + aligned_sizeof(bb);
 }
 
 //-------------------------------------------------------------
@@ -234,7 +232,9 @@ void mem_show(void (*print)(void *, size_t, int free)) {
     zone_adr += zone_size;
     
     // on va parcourir jusqu'a l'@ de fin
-    void *adr_fin = mem_space_get_addr()+mem_space_get_size()-1;
+    size_t mem_size = mem_space_get_size() - (mem_space_get_size() % ALIGNMENT);
+    void *adr_fin = mem_space_get_addr()+mem_size-1;
+    
     while (zone_adr < adr_fin) {
         if (zone_adr == (void*)cell_adr) { // on a une zone libre
             print((void*)((size_t)zone_adr-(size_t)adr_debut), cell_adr->size, 1);
@@ -270,7 +270,7 @@ mem_free_block_t *mem_first_fit(mem_free_block_t *first_free_block, size_t wante
     while (cell && cell->size < wanted_size) {
         // cas d'erreur
         if (cell->size < MIN_SIZE_BLOCK) {
-            // tout bloc faut au moins sizeof(fb) octets
+            // La taille minimale d'un bloc est de sizeof(fb) octets
             fprintf(stderr, "mem_alloc : chainage corrompu !\n");
             exit(1);
         }
@@ -300,7 +300,7 @@ mem_free_block_t *mem_best_fit(mem_free_block_t *first_free_block, size_t wanted
     while (cell) {
         // erreur
         if (cell->size < MIN_SIZE_BLOCK) {
-            // tout bloc faut au moins sizeof(fb) octets
+            // La taille minimale d'un bloc est de sizeof(fb) octets
             fprintf(stderr, "mem_alloc : chainage corrompu !\n");
             exit(1);
         }
@@ -341,7 +341,7 @@ mem_free_block_t *mem_worst_fit(mem_free_block_t *first_free_block, size_t wante
     while (block) {
         // erreur
         if (block->size < MIN_SIZE_BLOCK) {
-            // tout bloc faut au moins sizeof(fb) octets
+            // La taille minimale d'un bloc est de sizeof(fb) octets
             fprintf(stderr, "mem_alloc : chainage corrompu !\n");
             exit(1);
         }
