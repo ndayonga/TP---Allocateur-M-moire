@@ -10,7 +10,6 @@
 #include <assert.h>
 #include <stdint.h>
 
-
 #define max(a, b)       ((a) < (b) ? (b) : (a))
 #define MIN_SIZE_BLOCK  max(aligned_sizeof(bb), aligned_sizeof(fb))
 
@@ -24,9 +23,6 @@
 )
 #define aligned_sizeof(s) aligned_size(sizeof(s))
 
-
-mem_fit_function_t *get_free_block = mem_first_fit;
-
 //-------------------------------------------------------------
 // mem_init
 //-------------------------------------------------------------
@@ -38,6 +34,7 @@ void mem_init() {
     // on place la tete de la liste des zones libres en memoire
     mem_header_t* l = mem_space_get_addr();
     l->first = mem_space_get_addr() + aligned_sizeof(mem_header_t);
+    l->fit_function = mem_first_fit;
 
     // on replit le bloc en debut de 
     fb* first = l->first;
@@ -69,7 +66,7 @@ void *mem_alloc(size_t size) {
     size_t real_size;
 
     // on recupere le bloc libre qui nous interesse
-    mem_free_block_t *free_block = (*get_free_block)(tete->first, wanted);
+    mem_free_block_t *free_block = (*tete->fit_function)(tete->first, wanted);
 
     // s'il n'y en a pas on renvoie NULL
     if (!free_block) return NULL;
@@ -255,7 +252,8 @@ void mem_show(void (*print)(void *, size_t, int free)) {
 // mem_fit
 //-------------------------------------------------------------
 void mem_set_fit_handler(mem_fit_function_t *mff) {
-    get_free_block = mff;
+    mem_header_t *header = mem_space_get_addr();
+    header->fit_function = mff;
 }
 
 //-------------------------------------------------------------

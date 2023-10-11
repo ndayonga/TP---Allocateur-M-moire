@@ -18,8 +18,9 @@ LDFLAGS=
 
 ###############################################################################
 # targets
-TESTS=test_free test_memalloc test_fit_functions test_memshow test_init test_fusion test_fusion_bzero test_frag test_base test_base_bzero test_cheese test_cheese_bzero
-PROGRAMS=$(TESTS)
+TESTS=test_init test_fusion test_fusion_bzero test_frag test_base test_base_bzero test_cheese test_cheese_bzero
+TESTS2+= test_memshow test_fit_functions test_memalloc test_free test_robustesse
+PROGRAMS=$(TESTS) $(TESTS2)
 LIB_DIR=../libs
 
 ###############################################################################

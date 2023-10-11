@@ -21,8 +21,12 @@ typedef struct fb_ {
 } fb;
 typedef fb mem_free_block_t;
 
+// Définition du type mem_fit_function_t
+// type des fonctions d'allocation
+typedef mem_free_block_t *(mem_fit_function_t)(mem_free_block_t *, size_t);
+
 // liste chainee des zones libres
-typedef struct { fb *first; } header;
+typedef struct { mem_free_block_t *first; mem_fit_function_t *fit_function; } header;
 typedef header mem_header_t;
 
 // structure presente au debut de chaque bloc occupe
@@ -34,10 +38,6 @@ typedef bb mem_busy_block_t;
 /* -----------------------------------------------*/
 // Initialisation
 void mem_init(void);
-
-// Définition du type mem_fit_function_t
-// type des fonctions d'allocation
-typedef mem_free_block_t *(mem_fit_function_t)(mem_free_block_t *, size_t);
 
 // Choix de la fonction d'allocation
 // = choix de la stratégie de l'allocation
