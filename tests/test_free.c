@@ -6,6 +6,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+//-----------------------
+// ALIGNEMENT
+//-----------------------
+#define ALIGNMENT 16
+#define aligned_size(s) (\
+    (((s) % ALIGNMENT) == 0) ? (s) : \
+    ((s) + ALIGNMENT - ((s) % ALIGNMENT)) \
+)
+#define aligned_sizeof(s) aligned_size(sizeof(s))
+
 void afficher_zone(void *adresse, size_t taille, int free) {
     printf("Zone %s, Adresse : %lu, Taille : %lu\n", free ? "libre" : "occupee",
            (unsigned long)adresse, (unsigned long)taille);
@@ -14,7 +24,10 @@ void afficher_zone(void *adresse, size_t taille, int free) {
 int main(void)
 {
     mem_init();
-    void *adr = mem_alloc(128000-sizeof(header)-sizeof(bb));
+
+    // remplissage complet
+    header *h = mem_space_get_addr();
+    void *adr = mem_alloc(h->first->size - aligned_sizeof(bb));
     mem_show(&afficher_zone);
     mem_free(adr);
     printf("---------------------------\n");
